@@ -9,7 +9,10 @@ const app = e();
 app.use(e.json());
 app.use(cors(
   {
-  origin:'http://localhost:5173',
+   origin: [
+    "http://localhost:5173",
+    "https://todo-frontend-two-blond.vercel.app"
+  ],
   credentials:true
 } 
 ))
@@ -25,8 +28,8 @@ app.post("/signup", async (req, res) => {
       jwt.sign(userData, "Google", { expiresIn: "5d" }, (err, token) => {
         res.cookie("token", token, {
   httpOnly: true,
-  sameSite: "lax",
-  secure: false
+  sameSite: "none",
+  secure: true
 
 });
 
@@ -59,8 +62,8 @@ app.post("/login", async (req, res) => {
       jwt.sign(userData, "Google", { expiresIn: "5d" }, (err, token) => {
         res.cookie("token", token, {
          httpOnly: true,
-          sameSite: "lax",
-          secure: false
+          sameSite: "none",
+          secure: true
 
         });
 
