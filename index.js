@@ -18,6 +18,10 @@ app.use(cors(
 ))
 app.use(cookieParser());
 
+app.get("/ping", (req, res) => {
+  res.send("pong");
+});
+
 app.post("/signup", async (req, res) => {
   const userData = req.body;
   if (userData.email && userData.password) {
