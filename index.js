@@ -189,10 +189,19 @@ app.delete("/delete-multiple",verifyJWTToken, async (req, res) => {
 // })
 
 
+// app.post("/logout", (req, res) => {
+//   res.clearCookie("token");
+//   res.send({ success: true, message: "Logged out" });
+// });
 app.post("/logout", (req, res) => {
-  res.clearCookie("token");
+  res.clearCookie("token", {
+    httpOnly: true,
+    sameSite: "none",
+    secure: true
+  });
   res.send({ success: true, message: "Logged out" });
 });
+
 
 
 function verifyJWTToken(req,res,next){
