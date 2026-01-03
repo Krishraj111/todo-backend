@@ -1,9 +1,13 @@
+import dotenv from "dotenv";
+dotenv.config();
+
 import e from "express";
 import { connection, collectionName } from "./dbconfig.js";
 import cors from "cors";
 import { ObjectId } from "mongodb";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
+// import "dotenv/config";
 
 const app = e();
 app.use(e.json());
@@ -30,12 +34,19 @@ app.post("/signup", async (req, res) => {
     const result = await collection.insertOne(userData);
     if (result) {
       jwt.sign(userData, "Google", { expiresIn: "5d" }, (err, token) => {
+        const isProd = process.env.NODE_ENV === "production";
         res.cookie("token", token, {
-  httpOnly: true,
-  sameSite: "none",
-  secure: true
-
+          httpOnly: true,
+          secure: isProd,
+          sameSite: isProd ? "none" : "lax"
 });
+
+//         res.cookie("token", token, {
+//   httpOnly: true,
+//   sameSite: "none",
+//   secure: true
+
+// });
 
         res.send({
           success: true,
@@ -64,12 +75,20 @@ app.post("/login", async (req, res) => {
     });
     if (result) {
       jwt.sign(userData, "Google", { expiresIn: "5d" }, (err, token) => {
-        res.cookie("token", token, {
-         httpOnly: true,
-          sameSite: "none",
-          secure: true
+        const isProd = process.env.NODE_ENV === "production";
 
-        });
+res.cookie("token", token, {
+  httpOnly: true,
+  secure: isProd,
+  sameSite: isProd ? "none" : "lax"
+});
+
+        // res.cookie("token", token, {
+        //  httpOnly: true,
+        //   sameSite: "none",
+        //   secure: true
+
+        // });
 
         res.send({
           success: true,
@@ -193,14 +212,26 @@ app.delete("/delete-multiple",verifyJWTToken, async (req, res) => {
 //   res.clearCookie("token");
 //   res.send({ success: true, message: "Logged out" });
 // });
+
+// app.post("/logout", (req, res) => {
+//   res.clearCookie("token", {
+//     httpOnly: true,
+//     sameSite: "none",
+//     secure: true
+//   });
+//   res.send({ success: true, message: "Logged out" });
+// });
+const isProd = process.env.NODE_ENV === "production";
+
 app.post("/logout", (req, res) => {
   res.clearCookie("token", {
     httpOnly: true,
-    sameSite: "none",
-    secure: true
+    secure: isProd,
+    sameSite: isProd ? "none" : "lax"
   });
   res.send({ success: true, message: "Logged out" });
 });
+
 
 
 
