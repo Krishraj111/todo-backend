@@ -6,6 +6,8 @@ import { connection, collectionName } from "./dbconfig.js";
 import cors from "cors";
 import { ObjectId } from "mongodb";
 import jwt from "jsonwebtoken";
+import bcrypt from "bcrypt";
+
 import cookieParser from "cookie-parser";
 // import "dotenv/config";
 
@@ -27,13 +29,106 @@ app.get("/ping", (req, res) => {
 });
 
 app.post("/signup", async (req, res) => {
-  const userData = req.body;
-  if (userData.email && userData.password) {
-    const db = await connection();
-    const collection = await db.collection("users");
-    const result = await collection.insertOne(userData);
+  // STEP 1.1 (tum already kar chuke ho)
+   let { name, email, password } = req.body;
+
+  name = name?.trim();
+  email = email?.trim().toLowerCase();
+  password = password?.trim();
+
+    // STEP 1.2: Empty field validation
+  if (!name) {
+    return res.send({ success: false, message: "Name is required" });
+  }
+  // Name minimum length
+if (name.length < 3) {
+  return res.send({
+    success: false,
+    message: "Name must be at least 3 characters"
+  });
+}
+
+// Only letters + space allowed
+const nameRegex = /^[A-Za-z ]+$/;
+if (!nameRegex.test(name)) {
+  return res.send({
+    success: false,
+    message: "Name can contain only letters"
+  });
+}
+
+
+  if (!email) {
+    return res.send({ success: false, message: "Email is required" });
+  }
+
+  if (!password) {
+    return res.send({ success: false, message: "Password is required" });
+  }
+  // STEP 1.3: Email format validation
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  if (!emailRegex.test(email)) {
+    return res.send({
+      success: false,
+      message: "Invalid email format"
+    });
+  }
+
+  // STEP 1.3: Only gmail allowed
+  if (!email.endsWith("@gmail.com")) {
+    return res.send({
+      success: false,
+      message: "Only @gmail.com email is allowed"
+    });
+  }
+   const db = await connection();
+  const collection = await db.collection("users");
+
+  const existingUser = await collection.findOne({ email });
+
+  if (existingUser) {
+    return res.send({
+      success: false,
+      message: "Email already registered"
+    });
+  }
+
+  // Minimum length check
+if (password.length < 6) {
+  return res.send({
+    success: false,
+    message: "Password must be at least 6 characters long"
+  });
+}
+
+// Strong password pattern
+const passwordRegex =
+  /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).+$/;
+
+if (!passwordRegex.test(password)) {
+  return res.send({
+    success: false,
+    message:
+      "Password must contain uppercase, lowercase, number and special character"
+  });
+}
+  //const userData = req.body;
+  //if (userData.email && userData.password) {
+    // const db = await connection();
+    // const collection = await db.collection("users");
+    //const result = await collection.insertOne(userData);
+    // STEP 1.6.2: Hash password before saving
+const hashedPassword = await bcrypt.hash(password, 10);
+
+const result = await collection.insertOne({
+  name,
+  email,
+  password: hashedPassword
+});
+
     if (result) {
-      jwt.sign(userData, "Google", { expiresIn: "5d" }, (err, token) => {
+      jwt.sign({email,name}, "Google", { expiresIn: "5d" }, (err, token) => {
         const isProd = process.env.NODE_ENV === "production";
         res.cookie("token", token, {
           httpOnly: true,
@@ -55,33 +150,77 @@ app.post("/signup", async (req, res) => {
         });
       });
     }
-  } else {
-    res.send({
-      success: false,
-      message: "signupnote done",
-    });
-  }
+  // } else {
+  //   res.send({
+  //     success: false,
+  //     message: "signupnote done",
+  //   });
+  // }
   // res.send("Api in progress");
 });
+
+
+
+
 
 app.post("/login", async (req, res) => {
   const userData = req.body;
   if (userData.email && userData.password) {
     const db = await connection();
     const collection = await db.collection("users");
-    const result = await collection.findOne({
-      email: userData.email,
-      password: userData.password,
-    });
-    if (result) {
-      jwt.sign(userData, "Google", { expiresIn: "5d" }, (err, token) => {
-        const isProd = process.env.NODE_ENV === "production";
+    // const result = await collection.findOne({
+    //   email: userData.email,
+    //   password: userData.password,
+    // });
+    const result = await collection.findOne({ email: userData.email });
 
-res.cookie("token", token, {
-  httpOnly: true,
-  secure: isProd,
-  sameSite: isProd ? "none" : "lax"
-});
+if (!result) {
+  return res.send({
+    success: false,
+    message: "user not found",
+  });
+}
+
+// Compare entered password with hashed password
+const isMatch = await bcrypt.compare(userData.password, result.password);
+
+if (!isMatch) {
+  return res.send({
+    success: false,
+    message: "Invalid password",
+  });
+}
+jwt.sign(
+  { email: result.email, name: result.name },  // safer data
+  "Google",
+  { expiresIn: "5d" },
+  (err, token) => {
+
+    const isProd = process.env.NODE_ENV === "production";
+
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: isProd ? "none" : "lax"
+    });
+
+    res.send({
+      success: true,
+      message: "Login successful"
+    });
+  }
+);
+
+
+//     if (result) {
+//       jwt.sign(userData, "Google", { expiresIn: "5d" }, (err, token) => {
+//         const isProd = process.env.NODE_ENV === "production";
+
+// res.cookie("token", token, {
+//   httpOnly: true,
+//   secure: isProd,
+//   sameSite: isProd ? "none" : "lax"
+// });
 
         // res.cookie("token", token, {
         //  httpOnly: true,
@@ -90,18 +229,18 @@ res.cookie("token", token, {
 
         // });
 
-        res.send({
-          success: true,
-          message: "Login successful",
-          //token,
-        });
-      });
-    } else {
-      res.send({
-        success: false,
-        message: "user not found",
-      });
-    }
+    //     res.send({
+    //       success: true,
+    //       message: "Login successful",
+    //       //token,
+    //     });
+    //   });
+    // } else {
+    //   res.send({
+    //     success: false,
+    //     message: "user not found",
+    //   });
+    // }
   } else {
     res.send({
       success: false,
@@ -110,6 +249,8 @@ res.cookie("token", token, {
   }
   // res.send("Api in progress");
 });
+
+
 
 app.post("/add-task",verifyJWTToken, async (req, res) => {
   const db = await connection();
